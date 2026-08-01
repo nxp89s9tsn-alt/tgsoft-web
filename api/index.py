@@ -1,42 +1,111 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-import json, os, hashlib
+import json, os, hashlib, urllib.request
 from datetime import datetime, timezone, timedelta
 
 ADMIN_LOGIN = os.environ.get("ADMIN_LOGIN", "admin")
 ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "tgsoft_admin_2024")
 _JSON_PATH = "/tmp/tgsoft_users.json"
 
-def _hash_pw(pw): return hashlib.sha256(pw.encode()).hexdigest()
-def _load():
+KV_URL = os.environ.get("KV_REST_API_URL", "")
+KV_TOKEN = os.environ.get("KV_REST_API_TOKEN", "")
+
+
+def _has_kv():
+    return bool(KV_URL and KV_TOKEN)
+
+
+def _kv_get(key):
     try:
-        with open(_JSON_PATH, "r") as f: return json.load(f)
-    except: return []
+        req = urllib.request.Request(
+            f"{KV_URL}/get/{key}",
+            headers={"Authorization": f"Bearer {KV_TOKEN}"},
+        )
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            data = json.loads(resp.read())
+            result = data.get("result")
+            if result and result != "null":
+                return json.loads(result)
+    except:
+        pass
+    return None
+
+
+def _kv_set(key, value):
+    try:
+        body = json.dumps(value).encode()
+        req = urllib.request.Request(
+            f"{KV_URL}/set/{key}",
+            data=body,
+            headers={
+                "Authorization": f"Bearer {KV_TOKEN}",
+                "Content-Type": "application/json",
+            },
+            method="POST",
+        )
+        with urllib.request.urlopen(req, timeout=5):
+            return True
+    except:
+        pass
+    return False
+
+
+def _hash_pw(pw): return hashlib.sha256(pw.encode()).hexdigest()
+
+
+def _load():
+    if _has_kv():
+        users = _kv_get("users")
+        return users if isinstance(users, list) else []
+    try:
+        with open(_JSON_PATH, "r") as f:
+            return json.load(f)
+    except:
+        return []
+
+
 def _save(users):
-    with open(_JSON_PATH, "w") as f: json.dump(users, f)
+    if _has_kv():
+        return _kv_set("users", users)
+    try:
+        with open(_JSON_PATH, "w") as f:
+            json.dump(users, f)
+        return True
+    except:
+        return False
+
+
 def _find(login):
     for u in _load():
-        if u.get("login") == login: return u
+        if u.get("login") == login:
+            return u
     return None
+
+
 def _check_period(login):
     user = _find(login)
-    if not user: return {"active": False, "days_left": 0, "error": "user_not_found"}
-    if user.get("status") == "revoked": return {"active": False, "days_left": 0, "error": "revoked"}
-    if not user.get("expires_at"): return {"active": False, "days_left": 0, "error": "not_activated"}
+    if not user:
+        return {"active": False, "days_left": 0, "error": "user_not_found"}
+    if user.get("status") == "revoked":
+        return {"active": False, "days_left": 0, "error": "revoked"}
+    if not user.get("expires_at"):
+        return {"active": False, "days_left": 0, "error": "not_activated"}
     now = datetime.now(timezone.utc)
     expires = datetime.fromisoformat(user["expires_at"])
     if now > expires:
         users = _load()
         for u in users:
-            if u["login"] == login: u["status"] = "expired"
+            if u["login"] == login:
+                u["status"] = "expired"
         _save(users)
         return {"active": False, "days_left": 0, "error": "expired"}
     return {"active": True, "days_left": max(0, (expires - now).days), "expires_at": user["expires_at"]}
 
+
 app = Flask(__name__)
 CORS(app)
 
-# ===== REGISTER =====
+
 @app.route("/api/register", methods=["POST"])
 def register():
     data = request.get_json(force=True, silent=True) or {}
@@ -60,7 +129,7 @@ def register():
     _save(users)
     return jsonify({"ok": True, "login": login}), 201
 
-# ===== LOGIN =====
+
 @app.route("/api/login", methods=["POST"])
 def login():
     data = request.get_json(force=True, silent=True) or {}
@@ -76,7 +145,8 @@ def login():
     for u in users:
         if u["login"] == login:
             u["last_login"] = datetime.now(timezone.utc).isoformat()
-            if machine_id: u["machine_id"] = machine_id
+            if machine_id:
+                u["machine_id"] = machine_id
     _save(users)
     period = _check_period(login)
     return jsonify({
@@ -85,7 +155,7 @@ def login():
         "error": period.get("error"),
     }), 200
 
-# ===== CHECK =====
+
 @app.route("/api/check", methods=["POST"])
 def check():
     data = request.get_json(force=True, silent=True) or {}
@@ -99,7 +169,7 @@ def check():
         "error": period.get("error"),
     }), 200
 
-# ===== ADMIN =====
+
 @app.route("/api/admin", methods=["POST"])
 def admin():
     data = request.get_json(force=True, silent=True) or {}
@@ -159,9 +229,9 @@ def admin():
 
     return jsonify({"ok": False, "error": "Unknown action"}), 400
 
-# ===== Health check =====
+
 @app.route("/api", methods=["GET"])
 def health():
-    return jsonify({"ok": True, "service": "TGSoft API"}), 200
+    return jsonify({"ok": True, "service": "TGSoft API", "kv": _has_kv()}), 200
 
 handler = app
