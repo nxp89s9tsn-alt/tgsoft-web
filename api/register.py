@@ -1,0 +1,33 @@
+"""POST /api/register — create user. Body: {login, password}"""
+from flask import Flask, request, jsonify
+from flask_cors import CORS
+from storage import create_user, find_user
+
+app = Flask(__name__)
+CORS(app)
+
+@app.route("/api/register", methods=["POST"])
+def handle():
+    data = request.get_json() or {}
+    login = data.get("login", "").strip()
+    password = data.get("password", "").strip()
+
+    if not login or not password:
+        return jsonify({"ok": False, "error": "Login and password required"}), 400
+
+    if len(login) < 3:
+        return jsonify({"ok": False, "error": "Login too short (min 3)"}), 400
+
+    if len(password) < 4:
+        return jsonify({"ok": False, "error": "Password too short (min 4)"}), 400
+
+    if find_user(login):
+        return jsonify({"ok": False, "error": "User already exists"}), 409
+
+    user = create_user(login, password)
+    if user:
+        return jsonify({"ok": True, "login": login}), 201
+    return jsonify({"ok": False, "error": "Failed to create user"}), 500
+
+if __name__ == "__main__":
+    app.run()

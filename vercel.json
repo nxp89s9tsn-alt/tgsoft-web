@@ -1,0 +1,15 @@
+{
+  "version": 2,
+  "functions": {
+    "api/*.py": {
+      "runtime": "@vercel/python@latest"
+    }
+  },
+  "routes": [
+    { "src": "/api/register", "dest": "/api/register" },
+    { "src": "/api/login", "dest": "/api/login" },
+    { "src": "/api/check", "dest": "/api/check" },
+    { "src": "/api/admin", "dest": "/api/admin" },
+    { "src": "/(.*)", "dest": "/index.html" }
+  ]
+}
