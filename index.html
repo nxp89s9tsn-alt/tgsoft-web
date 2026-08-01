@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
@@ -95,6 +95,7 @@
         let adminLogin = '';
         let adminPass = '';
         let selectedUser = '';
+        const API_BASE = window.location.origin;
 
         function showToast(msg, type) {
             const t = document.getElementById('toast');
@@ -112,7 +113,7 @@
 
         async function refreshUsers() {
             try {
-                const resp = await fetch('/api/admin', {
+                const resp = await fetch(API_BASE + '/api/admin', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({admin_login: adminLogin, admin_password: adminPass, action: 'list'})
@@ -165,7 +166,7 @@
             const days = parseInt(document.getElementById('modalDays').value);
             if (!days || days <= 0) { showToast('Enter valid days', 'error'); return; }
             try {
-                const resp = await fetch('/api/admin', {
+                const resp = await fetch(API_BASE + '/api/admin', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({admin_login: adminLogin, admin_password: adminPass, action: 'set_period', login: selectedUser, days: days})
@@ -179,7 +180,7 @@
         async function revokeUser(login) {
             if (!confirm('Revoke ' + login + '?')) return;
             try {
-                const resp = await fetch('/api/admin', {
+                const resp = await fetch(API_BASE + '/api/admin', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({admin_login: adminLogin, admin_password: adminPass, action: 'revoke', login: login})
@@ -192,3 +193,4 @@
     </script>
 </body>
 </html>
+
