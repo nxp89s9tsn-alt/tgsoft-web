@@ -1,7 +1,9 @@
 {
-  "functions": {
-    "api/*.py": {
-      "runtime": "@vercel/python"
-    }
-  }
+  "builds": [
+    { "src": "api/register.py", "use": "@vercel/python" },
+    { "src": "api/login.py", "use": "@vercel/python" },
+    { "src": "api/check.py", "use": "@vercel/python" },
+    { "src": "api/admin.py", "use": "@vercel/python" },
+    { "src": "index.html", "use": "@vercel/static" }
+  ]
 }
