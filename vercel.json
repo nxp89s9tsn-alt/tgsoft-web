@@ -1,6 +1,16 @@
 {
   "builds": [
-    { "src": "api/*.py", "use": "@vercel/python" },
+    { "src": "api/register.py", "use": "@vercel/python" },
+    { "src": "api/login.py", "use": "@vercel/python" },
+    { "src": "api/check.py", "use": "@vercel/python" },
+    { "src": "api/admin.py", "use": "@vercel/python" },
     { "src": "index.html", "use": "@vercel/static" }
+  ],
+  "routes": [
+    { "src": "/api/register", "dest": "/api/register.py" },
+    { "src": "/api/login", "dest": "/api/login.py" },
+    { "src": "/api/check", "dest": "/api/check.py" },
+    { "src": "/api/admin", "dest": "/api/admin.py" },
+    { "src": "/(.*)", "dest": "/index.html" }
   ]
 }
